@@ -12,17 +12,27 @@ class Point:
         self.x = 0
         self.y = 0
         self.visited = set()
+        self.steps_total = 0
+        self.step_memo = {}
 
     def move(self, direction, magnitude):
         if direction in xs:
             direction = xs[direction]
             for i in range(1, magnitude + 1):
-                self.visited.add((self.x + (i * direction), self.y))
+                this_coord = (self.x + (i * direction), self.y)
+                self.visited.add(this_coord)
+                self.steps_total += 1
+                if this_coord not in self.step_memo:
+                    self.step_memo[this_coord] = self.steps_total
             self.x += magnitude * direction
         else:
             direction = ys[direction]
             for i in range(1, magnitude + 1):
-                self.visited.add((self.x, self.y + (i * direction)))
+                this_coord = (self.x, self.y + (i * direction))
+                self.visited.add(this_coord)
+                self.steps_total += 1
+                if this_coord not in self.step_memo:
+                    self.step_memo[this_coord] = self.steps_total
             self.y += magnitude * direction
 
     def __repr__(self):
@@ -52,4 +62,8 @@ while remaining:
     next_move = remaining.popleft()
     unfinished.move(direction = next_move[0], magnitude = int(next_move[1:]))
 
-print(min(abs(p[0]) + abs(p[1]) for p in unfinished.visited & finished.visited))
+intersections = unfinished.visited & finished.visited
+
+print(min(abs(p[0]) + abs(p[1]) for p in intersections))
+
+print(min(finished.step_memo[coord] + unfinished.step_memo[coord] for coord in intersections))
