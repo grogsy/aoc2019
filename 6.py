@@ -1,20 +1,5 @@
-import pprint
-
-# def count_orbits(data):
-#     counter = {}
-#     for line in data:
-#         orbitee, orbiter = line.split(")")
-#         orbit_count = counter.get(orbitee)
-#         if orbit_count is None:
-#             counter[orbitee] = 0
-#         counter[orbiter] = 1 + counter.get(orbitee)
-
-#     pprint.pprint([item for item in counter if counter[item] == 0])
-#     return sum(counter.values())
-
 def orbit_count(data, count=0, parent='COM'):
     edges = 0 + count
-    print(edges)
     descendants = []
 
     for line in data:
@@ -28,6 +13,33 @@ def orbit_count(data, count=0, parent='COM'):
 
     return edges
 
+def min_dist(data):
+    start = [line for line in data if line.endswith(')YOU')][0]
+    visited = {'YOU'}
+    current_node = start.split(')')[0]
+    return _min_dist(data, current=current_node, visited=visited)
+
+def _min_dist(data, count=0, current=None, visited={}):
+    visited.add(current)
+
+    parents = [line.split(')')[0] for line in data if line.endswith(')'+current)]
+    children = [line.split(')')[1] for line in data if line.startswith(current+')')]
+    possible_paths = parents + children
+
+    shortest = None
+    if 'SAN' in possible_paths:
+        return count
+
+    for c in possible_paths:
+        if c in visited:
+            continue
+        possible_path = _min_dist(data, count=count+1, current=c, visited=visited)
+        if possible_path is not None and (shortest is None or possible_path < shortest):
+            shortest = possible_path
+
+    return shortest
+
 with open('6.txt', 'r') as data:
     graph = data.read().split('\n')
-    print(orbit_count(graph))
+    # print(orbit_count(graph))
+    print(min_dist(graph))
