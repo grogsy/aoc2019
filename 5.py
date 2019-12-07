@@ -5,4 +5,5 @@ instructions = list(map(int, open('5.txt').read().split(',')))
 
 intcode = Computer(instructions)
 
-print(intcode.solution_one(noun=None, verb=None))
+print(intcode.run_diagnosis())
+

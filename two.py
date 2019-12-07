@@ -23,8 +23,9 @@ class Computer:
         self.instructions = instructions
         self.counter = 0
 
-    def solution_one(self, noun = 12, verb = 1):
+    def parse_instructions(self, noun = None, verb = None, test=False):
         data = self.instructions[:]
+        output = None if test else data
         data[1] = noun if noun else self.instructions[1]
         data[2] = verb if verb else self.instructions[2]
 
@@ -79,13 +80,19 @@ class Computer:
             data[pos] = val
 
         self.counter = 0
-        return data[-1]
+        return output
+
+    def run_diagnosis(self):
+        return self.parse_instructions(test=True)
+
+    def solution_one(self):
+        return self.parse_instructions(noun=12, verb=1)[0]
 
     def solution_two(self):
         for noun in range(100):
             for verb in range(100):
                 try:
-                    ans = self.solution_one(noun, verb)       
+                    ans = self.parse_instructions(noun, verb)[0]
                 except InvalidOpCode:
                     continue
                 if ans == 19690720:
