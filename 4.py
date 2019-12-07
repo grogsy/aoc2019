@@ -1,12 +1,9 @@
 check = range(153517, 630396)
 
-def has_double(num) -> int:
-    return any(num[i] == num[i + 1] for i in range(len(num) - 1))
-
 def increasing(num) -> int:
     return all(num[i] <= num[i + 1] for i in range(len(num) - 1))
 
-def only_two(num):
+def has_double(num):
     memo = {d: 0 for d in num}
     for d in num:
         memo[d] += 1
@@ -15,7 +12,7 @@ def only_two(num):
 def possible_pass(num):
     digits = list(map(int, str(num)))
 
-    return increasing(digits) and has_double(digits) and only_two(digits)
+    return increasing(digits) and has_double(digits)
 
 count = 0
 
