@@ -137,12 +137,14 @@ class DiagnosticTest(Computer):
         print("Diagnostic Test, value at address {}: {}".format(address, self.working_set[address]))
 
 class AmplifierTest(Computer):
-    def __init__(self, phase_setting, feedback=False, *args, **kwargs):
+    def __init__(self, phase_setting, feedback=False, silent=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.input_signal  = 0
         self.phase_tracker = 0
         self.input_tracker = 0
         self.phase_setting = phase_setting
+
+        self.silent = silent
 
     def handle_input(self):
         if self.input_tracker % 2 == 0:
@@ -160,7 +162,8 @@ class AmplifierTest(Computer):
     def handle_output(self):
         address = self.working_set[self.counter + 1]
         self.input_signal = self.working_set[address]
-        print(self.input_signal)
+        if not self.silent:
+            print(self.input_signal)
 
     def test_amplifiers(self):
         for _ in range(len(self.phase_setting)):
