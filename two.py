@@ -7,9 +7,9 @@ class Computer:
         1, # add(a, b)
         2, # mul(a, b)
         3, # mov(a)
-        4, # print(a)
-        5, # jt(a, b)
-        6, # jf(a, b)
+        4, # out(a)
+        5, # je(a, b)
+        6, # jne(a, b)
         7, # lt(a, b)
         8, # eq(a, b)
         99 # exit
@@ -19,84 +19,125 @@ class Computer:
         1  # as value
     }
 
-    def __init__(self, instructions):
+    def __init__(self, instructions, test = False, amp_settings=None):
         self.instructions = instructions
+
         self.counter = 0
+        self.testing = test
 
-    def parse_instructions(self, noun = None, verb = None, test=False):
-        data = self.instructions[:]
-        output = None if test else data
-        data[1] = noun if noun else self.instructions[1]
-        data[2] = verb if verb else self.instructions[2]
+        self.amp_settings = amp_settings
+        self.using_amplifier = True if amp_settings else False
+        self.amplifier_output = None
 
-        while self.counter < len(data): 
-            op = data[self.counter]
-            params = None
+    def parse_instructions(self):
+        self.working_set = self.instructions[:]
+
+        while self.counter < len(self.working_set): 
+            op = self.working_set[self.counter]
+            params = {}
             if op > 9 and op != 99:
-                long = str(op)
-                op = int(long[-2:])
-                params = long[:-2]
+                param_op = str(op)
+                op, params = self.parse_parameter_mode(param_op)
 
-            if op not in self.op_codes:
-                self.counter += 4
+            if op not in Computer.op_codes:
+                self.handle_unrecognized_opcode(op)
                 continue
             elif op == 99:
                 break
-            elif op == 3:
-                val = int(input("Opcode 3, Diagnostic Input: "))
-                self.counter += 2
-                pos = data[self.counter + 1]
-                data[pos] = val
+            elif op in (3, 4):
+                self.handle_io(op)
+                if self.amplifier_output:
+                    break
                 continue
-            elif op == 4:
-                x = data[self.counter + 1]
-                print("Diagnostic, value at data[{}]: {}".format(x, data[x]))
-                self.counter +=2
-                continue
+
             
-            x, y, pos = data[self.counter + 1], data[self.counter + 2], data[self.counter + 3]
-            x = x if params is not None and params[-1] == '1' else data[x]
-            y = y if params is not None and len(params) > 1 and params[-2] == '1' else data[y]
+            x, y, pos = self.working_set[self.counter + 1], self.working_set[self.counter + 2], self.working_set[self.counter + 3]
 
-            if op == 1:
-                self.counter += 4
-                val = x + y
-            elif op == 2:
-                self.counter += 4
-                val = x * y
-            elif op == 5:
-                self.counter = y if x else self.counter + 3
-                continue
-            elif op == 6:
-                self.counter = y if x == 0 else self.counter + 3
-                continue
-            elif op == 7:
-                val = 1 if x < y else 0
-                self.counter += 4
-            elif op == 8:
-                val = 1 if x == y else 0
-                self.counter += 4
+            if not params or params.get('x_position_mode'):
+                x = self.working_set[x]
+            if not params or params.get('y_position_mode'):
+                y = self.working_set[y]
 
-            data[pos] = val
+            if op in (5, 6):
+                self.jcmp(op, x, y)
+                continue
+            elif op in (1, 2, 7, 8):
+                self.set_value_at_address(op, x, y, pos)
+
 
         self.counter = 0
-        return output
+        
+        if self.testing:
+            return "Test Concluded"
+        elif self.amplifier_output is not None:
+            output = self.amplifier_output
+        else:
+            output = self.working_set
+        return output 
 
-    def run_diagnosis(self):
-        return self.parse_instructions(test=True)
+    def parse_parameter_mode(self, operation):
+        op = int(operation[-2:])
+        param_codes = operation[:-2]
 
-    def solution_one(self):
-        return self.parse_instructions(noun=12, verb=1)[0]
+        params = {
+            'x_position_mode': True if param_codes[-1] != '1' else False,
+            'y_position_mode': True if (len(param_codes) < 2 or param_codes[-2] != '1') else False,
+        }
 
-    def solution_two(self):
-        for noun in range(100):
-            for verb in range(100):
-                try:
-                    ans = self.parse_instructions(noun, verb)[0]
-                except InvalidOpCode:
-                    continue
-                if ans == 19690720:
-                    return 100 * noun + verb
+        return op, params
+
+    def handle_unrecognized_opcode(self, operation):
+        self.counter += 4
+
+    def handle_io(self, operation):
+        if operation == 3:
+            self.handle_input()
+        if operation == 4:
+            self.handle_output()
+
+        self.counter += 2
+
+    def handle_input(self):
+        if self.testing:
+            val = int(input("Opcode 3, Diagnostic Input: "))
+        elif self.amp_settings:
+            val = self.amp_settings.pop(0)
+
+        pos = self.working_set[self.counter + 1]
+        self.working_set[pos] = val
+
+    def handle_output(self):
+        x = self.working_set[self.counter + 1]
+        if self.testing:
+            print("Diagnostic, value at self.working_set[{}]: {}".format(x, self.working_set[x]))
+        elif self.using_amplifier:
+            self.amplifier_output = self.working_set[x]
+
+    
+    def jcmp(self, operation, a, b):
+        '''
+        Jump compare
+        Set instruction counter to b if condition applied to a evaluates to true,
+        Otherwise do nothing(counter moves up based on params taken (operation + 2 params = 3 moves up))
+        '''
+        if operation == 5:
+            self.counter = b if a != 0 else self.counter + 3
+        elif operation == 6:
+            self.counter = b if a == 0 else self.counter + 3
+
+    def set_value_at_address(self, operation, a, b, pos):
+        if operation == 1:
+            val = a + b
+        elif operation == 2:
+            val = a * b
+        elif operation == 7:
+            val = 1 if a < b else 0
+        elif operation == 8:
+            val = 1 if a == b else 0
+
+        self.working_set[pos] = val
+        self.counter += 4
+
 
 
 if __name__=='__main__':
@@ -104,5 +145,18 @@ if __name__=='__main__':
 
     intcode = Computer(instructions)
 
-    print("Solution 1: ", intcode.solution_one())
-    print("Solution 2: ", intcode.solution_two())
+    intcode.instructions[1] = 12
+    intcode.instructions[2] = 1
+    print("Solution 1: ")
+    print(intcode.parse_instructions()[0])
+    print("Solution 2: ")
+    for noun in range(100):
+        for verb in range(100):
+            try:
+                intcode.instructions[1] = noun
+                intcode.instructions[2] = verb
+                ans = intcode.parse_instructions()[0]
+            except:
+                continue
+            if ans == 19690720:
+                print(100 * noun + verb)
