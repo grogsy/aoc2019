@@ -3,7 +3,7 @@ from two import Computer
 instructions = list(map(int, open('5.txt').read().split(',')))
 # instructions = list(map(int,'1002,4,3,4,33'.split(',')))
 
-intcode = Computer(instructions)
+intcode = Computer(instructions, test=True)
 
-print(intcode.run_diagnosis())
+print(intcode.parse_instructions())
 
