@@ -17,16 +17,9 @@ class Computer:
         99  # exit
     }
 
-    def __init__(self, instructions, test=False, amp_settings=None):
+    def __init__(self, instructions):
         self.instructions = instructions
-
         self.counter = 0
-        self.testing = test
-
-        self.amp_settings = amp_settings
-        self.using_amplifier = True if amp_settings else False
-        self.amplifier_output = None
-        self.cached_amp_settings = amp_settings
 
     def parse_instructions(self):
         self.working_set = self.instructions[:]
@@ -45,8 +38,6 @@ class Computer:
                 break
             elif op in (3, 4):
                 self.handle_io(op)
-                if self.amplifier_output:
-                    break
                 continue
 
             x, y, pos = self.working_set[self.counter + 1], self.working_set[self.counter + 2], self.working_set[self.counter + 3]
@@ -62,14 +53,6 @@ class Computer:
                 self.set_value_at_address(op, x, y, pos)
 
         self.counter = 0
-
-        # if self.testing:
-        #     return "Test Concluded"
-        # elif self.amplifier_output is not None:
-        #     output = self.amplifier_output
-        # else:
-        #     output = self.working_set
-        # return output
 
     def parse_parameter_mode(self, operation):
         op = int(operation[-2:])
@@ -145,10 +128,14 @@ class AmplifierTest(Computer):
         self.phase_setting = phase_setting
 
         self.silent = silent
+        self.feedback = feedback
 
     def handle_input(self):
         if self.input_tracker % 2 == 0:
             # get input from phase_setting
+            if self.feedback:
+                if self.phase_tracker > len(self.phase_tracker):
+                    self.phase_tracker = 0
             val = self.phase_setting[self.phase_tracker]
             self.phase_tracker += 1
         else:
