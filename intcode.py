@@ -63,13 +63,13 @@ class Computer:
 
         self.counter = 0
 
-        if self.testing:
-            return "Test Concluded"
-        elif self.amplifier_output is not None:
-            output = self.amplifier_output
-        else:
-            output = self.working_set
-        return output
+        # if self.testing:
+        #     return "Test Concluded"
+        # elif self.amplifier_output is not None:
+        #     output = self.amplifier_output
+        # else:
+        #     output = self.working_set
+        # return output
 
     def parse_parameter_mode(self, operation):
         op = int(operation[-2:])
@@ -94,26 +94,15 @@ class Computer:
         self.counter += 2
 
     def handle_input(self):
-        if self.testing:
-            val = int(input("Opcode 3, Diagnostic Input: "))
-        elif self.amp_settings:
-            val = self.amp_settings.pop(0)
-
-        pos = self.working_set[self.counter + 1]
-        self.working_set[pos] = val
+        raise NotImplementedError
 
     def handle_output(self):
-        x = self.working_set[self.counter + 1]
-        if self.testing:
-            print("Diagnostic, value at self.working_set[{}]: {}".format(x, self.working_set[x]))
-        elif self.using_amplifier:
-            self.amplifier_output = self.working_set[x]
+        raise NotImplementedError
+
 
     def jcmp(self, operation, a, b):
         '''
         Jump compare
-        Set instruction counter to b if condition applied to a evaluates to true,
-        Otherwise do nothing(counter moves up based on params taken (operation + 2 params = 3 moves up))
         '''
         if operation == 5:
             self.counter = b if a != 0 else self.counter + 3
@@ -133,24 +122,47 @@ class Computer:
         self.working_set[pos] = val
         self.counter += 4
 
+class DiagnosticTest(Computer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-if __name__ == '__main__':
-    instructions = list(map(int, open('2.txt').read().split(',')))
+    def handle_input(self):
+        val = int(input("Opcode 3, Diagnostic Input: "))
 
-    intcode = Computer(instructions)
+        pos = self.working_set[self.counter + 1]
+        self.working_set[pos] = val
+    
+    def handle_output(self):
+        address = self.working_set[self.counter + 1]
+        print("Diagnostic Test, value at address {}: {}".format(address, self.working_set[address]))
 
-    intcode.instructions[1] = 12
-    intcode.instructions[2] = 1
-    print("Solution 1: ")
-    print(intcode.parse_instructions()[0])
-    print("Solution 2: ")
-    for noun in range(100):
-        for verb in range(100):
-            try:
-                intcode.instructions[1] = noun
-                intcode.instructions[2] = verb
-                ans = intcode.parse_instructions()[0]
-            except:
-                continue
-            if ans == 19690720:
-                print(100 * noun + verb)
+class AmplifierTest(Computer):
+    def __init__(self, phase_setting, feedback=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.input_signal  = 0
+        self.phase_tracker = 0
+        self.input_tracker = 0
+        self.phase_setting = phase_setting
+
+    def handle_input(self):
+        if self.input_tracker % 2 == 0:
+            # get input from phase_setting
+            val = self.phase_setting[self.phase_tracker]
+            self.phase_tracker += 1
+        else:
+            # get input from input signal
+            val = self.input_signal
+        
+        self.input_tracker += 1
+        pos = self.working_set[self.counter + 1]
+        self.working_set[pos] = val
+
+    def handle_output(self):
+        address = self.working_set[self.counter + 1]
+        self.input_signal = self.working_set[address]
+        print(self.input_signal)
+
+    def test_amplifiers(self):
+        for _ in range(len(self.phase_setting)):
+            self.parse_instructions()
+
