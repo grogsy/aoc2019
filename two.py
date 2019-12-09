@@ -2,24 +2,22 @@
 class InvalidOpCode(BaseException):
     pass
 
+
 class Computer:
+
     op_codes = {
-        1, # add(a, b)
-        2, # mul(a, b)
-        3, # mov(a)
-        4, # out(a)
-        5, # je(a, b)
-        6, # jne(a, b)
-        7, # lt(a, b)
-        8, # eq(a, b)
-        99 # exit
-    }
-    param_modes = {
-        0, # indexed-position
-        1  # as value
+        1,  # add(a, b)
+        2,  # mul(a, b)
+        3,  # mov(a)
+        4,  # out(a)
+        5,  # je(a, b)
+        6,  # jne(a, b)
+        7,  # lt(a, b)
+        8,  # eq(a, b)
+        99  # exit
     }
 
-    def __init__(self, instructions, test = False, amp_settings=None):
+    def __init__(self, instructions, test=False, amp_settings=None):
         self.instructions = instructions
 
         self.counter = 0
@@ -28,11 +26,12 @@ class Computer:
         self.amp_settings = amp_settings
         self.using_amplifier = True if amp_settings else False
         self.amplifier_output = None
+        self.cached_amp_settings = amp_settings
 
     def parse_instructions(self):
         self.working_set = self.instructions[:]
 
-        while self.counter < len(self.working_set): 
+        while self.counter < len(self.working_set):
             op = self.working_set[self.counter]
             params = {}
             if op > 9 and op != 99:
@@ -50,38 +49,35 @@ class Computer:
                     break
                 continue
 
-            
             x, y, pos = self.working_set[self.counter + 1], self.working_set[self.counter + 2], self.working_set[self.counter + 3]
 
-            if not params or params.get('x_position_mode'):
+            if not params.get('x_immediate_mode'):
                 x = self.working_set[x]
-            if not params or params.get('y_position_mode'):
+            if not params.get('y_immediate_mode'):
                 y = self.working_set[y]
 
             if op in (5, 6):
                 self.jcmp(op, x, y)
-                continue
             elif op in (1, 2, 7, 8):
                 self.set_value_at_address(op, x, y, pos)
 
-
         self.counter = 0
-        
+
         if self.testing:
             return "Test Concluded"
         elif self.amplifier_output is not None:
             output = self.amplifier_output
         else:
             output = self.working_set
-        return output 
+        return output
 
     def parse_parameter_mode(self, operation):
         op = int(operation[-2:])
         param_codes = operation[:-2]
 
         params = {
-            'x_position_mode': True if param_codes[-1] != '1' else False,
-            'y_position_mode': True if (len(param_codes) < 2 or param_codes[-2] != '1') else False,
+            'x_immediate_mode': True if param_codes[-1] == '1' else False,
+            'y_immediate_mode': True if (len(param_codes) > 1 and param_codes[-2] == '1') else False,
         }
 
         return op, params
@@ -113,7 +109,6 @@ class Computer:
         elif self.using_amplifier:
             self.amplifier_output = self.working_set[x]
 
-    
     def jcmp(self, operation, a, b):
         '''
         Jump compare
@@ -139,8 +134,7 @@ class Computer:
         self.counter += 4
 
 
-
-if __name__=='__main__':
+if __name__ == '__main__':
     instructions = list(map(int, open('2.txt').read().split(',')))
 
     intcode = Computer(instructions)
