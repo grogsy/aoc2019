@@ -4,14 +4,13 @@ class InvalidOpCode(BaseException):
 
 
 class Computer:
-
     op_codes = {
         1,  # add(a, b)
         2,  # mul(a, b)
         3,  # mov(a)
         4,  # out(a)
-        5,  # je(a, b)
-        6,  # jne(a, b)
+        5,  # je(a, b)  jump equal to 0
+        6,  # jne(a, b) jump not equal to 0
         7,  # lt(a, b)
         8,  # eq(a, b)
         99  # exit
@@ -21,8 +20,11 @@ class Computer:
         self.instructions = instructions
         self.counter = 0
 
+        # subclasses will handle pause mechanism somehow
+        self.paused = False
+
     def parse_instructions(self):
-        self.working_set = self.instructions[:]
+        self.working_set = self.instructions[:] 
 
         while self.counter < len(self.working_set):
             op = self.working_set[self.counter]
@@ -35,9 +37,12 @@ class Computer:
                 self.handle_unrecognized_opcode(op)
                 continue
             elif op == 99:
+                self.handle_close()
                 break
             elif op in (3, 4):
                 self.handle_io(op)
+                if self.paused:
+                    break
                 continue
 
             x, y, pos = self.working_set[self.counter + 1], self.working_set[self.counter + 2], self.working_set[self.counter + 3]
@@ -51,7 +56,7 @@ class Computer:
                 self.jcmp(op, x, y)
             elif op in (1, 2, 7, 8):
                 self.set_value_at_address(op, x, y, pos)
-
+        
         self.counter = 0
 
     def parse_parameter_mode(self, operation):
@@ -68,13 +73,14 @@ class Computer:
     def handle_unrecognized_opcode(self, operation):
         self.counter += 4
 
+    def handle_close(self):
+        pass
+
     def handle_io(self, operation):
         if operation == 3:
             self.handle_input()
         if operation == 4:
             self.handle_output()
-
-        self.counter += 2
 
     def handle_input(self):
         raise NotImplementedError
@@ -114,45 +120,56 @@ class DiagnosticTest(Computer):
 
         pos = self.working_set[self.counter + 1]
         self.working_set[pos] = val
+        self.counter += 2
     
     def handle_output(self):
         address = self.working_set[self.counter + 1]
         print("Diagnostic Test, value at address {}: {}".format(address, self.working_set[address]))
+        self.counter += 2
 
-class AmplifierTest(Computer):
-    def __init__(self, phase_setting, feedback=False, silent=False, *args, **kwargs):
+class AmplifierController(Computer):
+    def __init__(self, phase_setting, silent=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.input_signal  = 0
-        self.phase_tracker = 0
         self.input_tracker = 0
         self.phase_setting = phase_setting
 
         self.silent = silent
-        self.feedback = feedback
+        self.halt = False
+        self.prev_counter = 0
+
+    def parse_instructions(self):
+        self.counter = self.prev_counter
+        self.paused = False
+        super().parse_instructions()
+
+    def handle_close(self):
+        self.halt = True
 
     def handle_input(self):
-        if self.input_tracker % 2 == 0:
+        if self.input_tracker == 0:
             # get input from phase_setting
-            if self.feedback:
-                if self.phase_tracker > len(self.phase_tracker):
-                    self.phase_tracker = 0
-            val = self.phase_setting[self.phase_tracker]
-            self.phase_tracker += 1
+            val = self.phase_setting
+            self.input_tracker += 1
         else:
             # get input from input signal
             val = self.input_signal
         
-        self.input_tracker += 1
-        pos = self.working_set[self.counter + 1]
-        self.working_set[pos] = val
+        address = self.working_set[self.counter + 1]
+        self.working_set[address] = val
+        self.counter += 2
 
     def handle_output(self):
         address = self.working_set[self.counter + 1]
         self.input_signal = self.working_set[address]
+        self.counter += 2
         if not self.silent:
             print(self.input_signal)
 
-    def test_amplifiers(self):
-        for _ in range(len(self.phase_setting)):
-            self.parse_instructions()
+        # save working state
+        self.instructions = self.working_set
+        self.prev_counter = self.counter
+
+        # lock amp from processing
+        self.paused = True
 
