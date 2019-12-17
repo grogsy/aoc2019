@@ -31,4 +31,4 @@ layers = get_layers(data)
 print("Solution 1: {}".format(check_encoding(layers)))
 output = get_message(layers)
 for layer in output:
-    print(layer)
+    print(''.join(layer))

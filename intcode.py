@@ -34,7 +34,6 @@ class Computer:
         self.working_set = self.instructions[:] 
 
         while self.counter < len(self.working_set):
-            # print(self.working_set[self.counter: self.counter+4])
             op = self.working_set[self.counter]
             if op == 99:
                 self.handle_close()
@@ -55,6 +54,8 @@ class Computer:
 
             y = self.parse_parameter_mode(self.working_set[self.counter + 2], params.get('y'))
             pos = self.working_set[self.counter + 3]
+            if params.get('use_relative_base'):
+                pos = pos + self.relative_base
 
             if op in (5, 6):
                 self.jcmp(op, x, y)
@@ -62,6 +63,28 @@ class Computer:
                 self.set_value_at_address(op, x, y, pos)
         
         self.counter = 0
+
+    def parse_operation(self, operation):
+        op = int(operation[-2:])
+        x = 0
+        y = 0
+        use_relative_base = False
+
+        if len(operation) > 2:
+            param_codes = operation[:-2]
+            x = int(param_codes[-1])
+            if len(param_codes) > 1:
+                y = int(param_codes[-2])
+            if len(param_codes) == 3 and int(param_codes[-3]) == 2:
+                use_relative_base = True
+
+        params = {
+            'x': Computer.param_modes.get(x, 'position_mode'),
+            'y': Computer.param_modes.get(y, 'position_mode'),
+            'use_relative_base': use_relative_base
+        }
+
+        return op, params
 
     def parse_parameter_mode(self, value, param):
         if param == 'position_mode':
@@ -73,23 +96,6 @@ class Computer:
 
         return value
 
-    def parse_operation(self, operation):
-        op = int(operation[-2:])
-        x = 0
-        y = 0
-
-        if len(operation) > 2:
-            param_codes = operation[:-2]
-            x = int(param_codes[-1])
-            if len(param_codes) > 1:
-                y = int(param_codes[-2])
-
-        params = {
-            'x': Computer.param_modes.get(x, 'position_mode'),
-            'y': Computer.param_modes.get(y, 'position_mode')
-        }
-
-        return op, params
 
     def handle_unrecognized_opcode(self, operation):
         self.counter += 4
@@ -206,3 +212,9 @@ class SensorBooster(DiagnosticTest):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.instructions += [0] * 2048
+
+    def handle_input(self, value):
+        address = self.working_set[self.counter + 1] + self.relative_base
+        val = int(input("Sensor Booster Input: "))
+        self.working_set[address] = val
+        self.counter += 2
