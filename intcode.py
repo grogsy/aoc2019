@@ -22,11 +22,8 @@ class Computer:
         2: 'relative_mode'
     }
 
-    def __init__(self, instructions, extend = False):
+    def __init__(self, instructions):
         self.instructions = instructions
-        if extend:
-            # make extends memory an optional feature
-            self.instructions += ([0] * 2048)
         self.counter = 0
         self.relative_base = 0
 
@@ -45,8 +42,7 @@ class Computer:
             
             op, params = self.parse_operation(str(op))
 
-            x = self.working_set[self.counter + 1]
-            x = self.parse_parameter_mode(x, params.get('x'))
+            x = self.parse_parameter_mode(self.working_set[self.counter + 1], params.get('x'))
 
             if op not in Computer.op_codes:
                 self.handle_unrecognized_opcode(op)
@@ -57,9 +53,7 @@ class Computer:
                     break
                 continue
 
-            y = self.working_set[self.counter + 2]
-            y = self.parse_parameter_mode(y, params.get('y'))
-
+            y = self.parse_parameter_mode(self.working_set[self.counter + 2], params.get('y'))
             pos = self.working_set[self.counter + 3]
 
             if op in (5, 6):
@@ -154,13 +148,10 @@ class DiagnosticTest(Computer):
     def handle_input(self, value):
         val = int(input("Opcode 3, Diagnostic Input: "))
 
-        # pos = self.working_set[self.counter + 1]
         self.working_set[value] = val
         self.counter += 2
     
     def handle_output(self, value):
-        # address = self.working_set[self.counter + 1]
-        # print("Diagnostic Test, value at address {}: {}".format(address, self.working_set[address]))
         print("Diagnostic Test Value: {}".format(value))
         self.counter += 2
 
@@ -183,7 +174,7 @@ class AmplifierController(Computer):
     def handle_close(self):
         self.halt = True
 
-    def handle_input(self, _):
+    def handle_input(self, value=None):
         if self.input_tracker == 0:
             # get input from phase_setting
             val = self.phase_setting
@@ -211,3 +202,7 @@ class AmplifierController(Computer):
         # lock amp from processing
         self.paused = True
 
+class SensorBooster(DiagnosticTest):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instructions += [0] * 2048
